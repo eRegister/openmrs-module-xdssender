@@ -67,6 +67,8 @@ public class XdsSenderConfig {
 
 	private static final String XDSSENDER_EXPORT_CCD_ENDPOINT = "xdssender.exportCcdEndpoint";
 
+	private static final String XDSSENDER_EXPORT_OBS_ENDPOINT = "xdssender.exportObsEndpoint";
+
 	private static final String XDSSENDER_OSHR_USERNAME = "xdssender.oshr.username";
 
 	private static final String XDSSENDER_OSHR_PASSWORD = "xdssender.oshr.password";
@@ -172,6 +174,10 @@ public class XdsSenderConfig {
 	
 	public String getExportCcdEndpoint() {
 		return getProperty(XDSSENDER_EXPORT_CCD_ENDPOINT);
+	}
+
+	public String getExportObsEndpoint() {
+		return getProperty(XDSSENDER_EXPORT_OBS_ENDPOINT);
 	}
 	
 	public String getOshrUsername() {

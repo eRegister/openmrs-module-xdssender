@@ -85,8 +85,14 @@
 
 	<globalProperty>
 		<property>xdssender.exportCcdEndpoint</property>
-		<defaultValue>https://sedish.net:8082/openmrs/ws/rest/exportccd/ccd</defaultValue>
+		<defaultValue>https://thebukana.org:8080/openmrs/ws/rest/exportccd/ccd</defaultValue>
 		<description>Specifies the export ccd module endpoint address (OpenSHR)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>xdssender.exportObsEndpoint</property>
+		<defaultValue>https://thebukana.org:8080/openmrs/ws/rest/v1/obs</defaultValue>
+		<description>Specifies the export shr obs endpoint address (OpenSHR)</description>
 	</globalProperty>
 
 	<globalProperty>

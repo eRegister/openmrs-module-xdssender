@@ -19,6 +19,15 @@
         </property>
     </bean>
 
+    <bean parent="serviceContext">
+        <property name="moduleService">
+            <list>
+                <value>org.openmrs.module.xdssender.api.service.XdsImportService</value>
+                <ref bean="xdsSender.XdsImportService" />
+            </list>
+        </property>
+    </bean>
+
     <!--<bean parent="serviceContext">
         <property name="moduleService">
             <list>

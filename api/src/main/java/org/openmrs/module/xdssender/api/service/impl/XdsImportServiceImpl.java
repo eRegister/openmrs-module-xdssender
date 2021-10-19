@@ -15,6 +15,7 @@ import org.openmrs.module.xdssender.api.errorhandling.CcdErrorHandlingService;
 import org.openmrs.module.xdssender.api.errorhandling.ErrorHandlingService;
 import org.openmrs.module.xdssender.api.errorhandling.RetrieveAndSaveCcdParameters;
 import org.openmrs.module.xdssender.api.service.XdsImportService;
+import org.openmrs.module.xdssender.api.xds.RestRetriever;
 import org.openmrs.module.xdssender.api.xds.XdsRetriever;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -27,12 +28,16 @@ public class XdsImportServiceImpl implements XdsImportService {
 	private static final Log LOGGER = LogFactory.getLog(XdsImportServiceImpl.class);
 
 	private static final String ECID_NAME = "ECID";
+	private static final String PATIENT_ID_NAME = "Patient Identifier";
 	
 	@Autowired
 	private XdsSenderConfig config;
 	
 	@Autowired
 	private XdsRetriever xdsRetriever;
+
+	@Autowired
+	private RestRetriever restRetriever;
 
 	@Override
 	public Ccd retrieveCCD(Patient patient) throws XDSException {
@@ -67,6 +72,65 @@ public class XdsImportServiceImpl implements XdsImportService {
 		return ccd;
 	}
 
+	@Override
+	public String retrieveSHRObs(Patient patient) {
+		String obsResult = null;
+
+		String patientIdenditier = extractPatientIdentifier(patient);
+		RestHttpResult result = restRetriever.sendRetrieveObs(patientIdenditier);
+
+		if (result.inError()) {
+			ErrorHandlingService errorHandler = config.getCcdErrorHandlingService();
+			if (errorHandler != null) {
+				errorHandler.handle(
+						prepareParameters(patient),
+						CcdErrorHandlingService.RETRIEVE_AND_SAVE_CCD_DESTINATION,
+						true,
+						ExceptionUtils.getFullStackTrace(result.getException()));
+			}
+		} else {
+			try {
+				HttpResponse response = result.getResponse();
+				String content = IOUtils.toString(response.getEntity().getContent());
+
+				obsResult = content;
+			} catch (IOException e) {
+				LOGGER.error("Unable to load SHR Obs content", e);
+			}
+		}
+
+		return obsResult;
+	}
+
+	@Override
+	public String retrieveStrSHRObs(String patientIdenditier) {
+		// TEMPORARY METHOD FOR TESTING REST ENDPOINT!!!!!
+		String obsResult = null;
+
+		RestHttpResult result = restRetriever.sendRetrieveObs(patientIdenditier);
+		if (result.inError()) {
+			ErrorHandlingService errorHandler = config.getCcdErrorHandlingService();
+			if (errorHandler != null) {
+				errorHandler.handle(
+						patientIdenditier,
+						CcdErrorHandlingService.RETRIEVE_AND_SAVE_CCD_DESTINATION,
+						true,
+						ExceptionUtils.getFullStackTrace(result.getException()));
+			}
+		} else {
+			try {
+				HttpResponse response = result.getResponse();
+				String content = IOUtils.toString(response.getEntity().getContent());
+
+				obsResult = content;
+			} catch (IOException e) {
+				LOGGER.error("Unable to load SHR Obs content", e);
+			}
+		}
+
+		return obsResult;
+	}
+
 	private String extractPatientEcid(Patient patient) {
 		String patientEcid = null;
 		for (PatientIdentifier patientIdentifier : patient.getIdentifiers()) {
@@ -75,6 +139,16 @@ public class XdsImportServiceImpl implements XdsImportService {
 			}
 		}
 		return patientEcid;
+	}
+
+	private String extractPatientIdentifier(Patient patient) {
+		String patientID = null;
+		for (PatientIdentifier patientIdentifier : patient.getIdentifiers()) {
+			if (patientIdentifier.getIdentifierType().getName().equals(PATIENT_ID_NAME)) {
+				patientID = patientIdentifier.getIdentifier();
+			}
+		}
+		return patientID;
 	}
 
 	private String prepareParameters(Patient patient) {

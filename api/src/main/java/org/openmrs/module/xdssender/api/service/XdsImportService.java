@@ -5,6 +5,8 @@ import org.openmrs.Patient;
 import org.openmrs.module.xdssender.api.domain.Ccd;
 
 public interface XdsImportService {
-	
+
 	Ccd retrieveCCD(Patient patient) throws XDSException;
+	String retrieveSHRObs(Patient patient);
+	String retrieveStrSHRObs(String patientIdenditier);
 }
