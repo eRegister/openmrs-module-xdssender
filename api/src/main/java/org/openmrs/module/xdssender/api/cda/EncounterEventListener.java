@@ -25,10 +25,13 @@ import javax.jms.Message;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component("xdssender.EncounterEventListener")
 public class EncounterEventListener implements EventListener {
-	
+    
+    
 	private static final Logger LOGGER = LoggerFactory.getLogger(EncounterEventListener.class);
 
 	@Autowired
@@ -36,66 +39,86 @@ public class EncounterEventListener implements EventListener {
 
 	@Autowired
 	private PatientEcidUpdater ecidUpdater;
+    
+  
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10); 
 
-	@Override
-	public void onMessage(Message message) {
-		try {
-			MapMessage mapMessage = (MapMessage) message;
-			String messageAction = mapMessage.getString("action");
+
+    @Override
+    public void onMessage(Message message) {
+        try {
+             MapMessage mapMessage = (MapMessage) message;
+			 String messageAction = mapMessage.getString("action");
 			
-			Context.openSession();
-			Context.authenticate(config.getOpenmrsUsername(), config.getOpenmrsPassword());
-			
-			if (Event.Action.CREATED.toString().equals(messageAction)
-			        || Event.Action.UPDATED.toString().equals(messageAction)) {
-				String uuid = ((MapMessage) message).getString("uuid");
-				Encounter encounter = Context.getEncounterService().getEncounterByUuid(uuid);
-				//if (encounter.getForm() == null) {
-				//	LOGGER.warn("Skipped sending Encounter %s (formId is NULL "
-				//			+ "-> probably it's the creating encounter)");
-				//} else {
-				/** TODO: FIND A ROBUST AND ELEGANT SOLUTION FOR THIS, IMPLEMENTING IT TO GET IT WORKING ASAP **/
-				if (encounter.getEncounterProviders().isEmpty()) {
-					LOGGER.warn("Skipped sending Encounter %s (Encounter already from HIE"
+			 
+            
+            if (Event.Action.CREATED.toString().equals(messageAction)
+                    || Event.Action.UPDATED.toString().equals(messageAction)) {
+              
+				executorService.submit(() -> {
+                    try {
+                        
+						Context.openSession();
+			            Context.authenticate(config.getOpenmrsUsername(), config.getOpenmrsPassword());
+						String uuid = ((MapMessage) message).getString("uuid");
+				        Encounter encounter = Context.getEncounterService().getEncounterByUuid(uuid);         
+						
+						if (encounter.getEncounterProviders().isEmpty()) {
+					       LOGGER.warn("Skipped sending Encounter %s (Encounter already from HIE"
 							+ "-> this is caused by the creating encounter)");
-				} else if (!encounterHasSentinelEvents(encounter)) {
-					LOGGER.warn("Skipped sending Encounter %s (Encounter does not have any sentinel events"
+				        } 
+						else if (!encounterHasSentinelEvents(encounter)) {
+					        LOGGER.warn("Skipped sending Encounter %s (Encounter does not have any sentinel events"
 							+ "-> this is caused by the creating encounter)");
-				} else {
-					Patient patient = Context.getPatientService()
-							.getPatient(encounter.getPatient().getPatientId());
+						}
+						else {
+					          Patient patient = Context.getPatientService().getPatient(encounter.getPatient().getPatientId());
+							
+				           //commeting out this piece of code that fetch ECID from OPenEMPI after commeting the xdsProvideAndRegister code
+                            //to stop looking for and ECID of a patient.			
 
-					ecidUpdater.fetchEcidIfRequired(patient);
+				             //ecidUpdater.fetchEcidIfRequired(patient);
+							 XdsExportService service = Context.getService(XdsExportService.class);
+							 
+						try {
+						       service.exportProvideAndRegister(encounter, patient);
+					        }
+					    catch (Exception e) {
 
-					XdsExportService service = Context.getService(XdsExportService.class);
-
-					try {
-						service.exportProvideAndRegister(encounter, patient);
-					}
-					catch (Exception e) {
-
-						LOGGER.error("XDS export exception occurred", e);
-						ErrorHandlingService errorHandler = config.getXdsBErrorHandlingService();
-						if (errorHandler != null) {
-							LOGGER.error("XDS export exception occurred", e);
-							errorHandler.handle(
-									prepareParameters(encounter, patient),
-									XdsBErrorHandlingService.EXPORT_PROVIDE_AND_REGISTER_DESTINATION,
+						       LOGGER.error("XDS export exception occurred", e);
+						       ErrorHandlingService errorHandler = config.getXdsBErrorHandlingService();
+						    if (errorHandler != null) {
+							        LOGGER.error("XDS export exception occurred", e);
+							           errorHandler.handle(
+									   prepareParameters(encounter, patient),
+									   XdsBErrorHandlingService.EXPORT_PROVIDE_AND_REGISTER_DESTINATION,
 									true,
-									ExceptionUtils.getFullStackTrace(e));
-						} else {
-							throw new RuntimeException("XDS export exception occurred "
+									   ExceptionUtils.getFullStackTrace(e));
+						       }  
+							else {
+							        throw new RuntimeException("XDS export exception occurred "
 									+ "with not configured XDS.b error handler", e);
 						}
+					   }
+					  }
 					}
-				}
-			}
-			Context.closeSession();
+					catch (Exception e) {
+						
+                        LOGGER.error("XDS export exception occurred", e);
+                    }
+				} 
+                );
 		}
-		catch (JMSException e) {
-			System.out.println("Some error occurred" + e.getErrorCode());
+		Context.closeSession();
+		
+		
 		}
-	}
+            
+        
+        catch (JMSException e) {
+               System.out.println("Some error occurred" + e.getErrorCode());
+            }
+    }
 	
 	private String prepareParameters(Encounter encounter, Patient patient) {
 		ExportProvideAndRegisterParameters parameters =
@@ -110,11 +133,7 @@ public class EncounterEventListener implements EventListener {
 	private boolean encounterHasSentinelEvents(Encounter encounter) {
 		Set<Obs> observations = encounter.getObs();
 		for (Obs o : observations) {
-			if (o.getConcept().getName().toString().equalsIgnoreCase("WEIGHT")
-					|| o.getConcept().getName().toString().equalsIgnoreCase("HEIGHT")
-					|| o.getConcept().getName().toString().equalsIgnoreCase("Systolic")
-					|| o.getConcept().getName().toString().equalsIgnoreCase("Diastolic")
-					|| o.getConcept().getName().toString().equalsIgnoreCase("HTC, Final HIV status")
+			if (o.getConcept().getName().toString().equalsIgnoreCase("HTC, Final HIV status")
 					|| o.getConcept().getName().toString().equalsIgnoreCase("HTC, Retest HIV status")
 					|| o.getConcept().getName().toString().equalsIgnoreCase("HIVTC, ART start date")
 					|| o.getConcept().getName().toString().equalsIgnoreCase("ART, Follow-up date")
@@ -127,4 +146,5 @@ public class EncounterEventListener implements EventListener {
 		}
 		return false;
 	}
-}
+  }
+

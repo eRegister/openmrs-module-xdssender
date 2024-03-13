@@ -93,6 +93,12 @@ public class CdaMetadataUtil {
 			for (ConceptMap mapping : value.getConceptMappings()) {
 				if (mapping.getConceptMapType().getName().equalsIgnoreCase("SAME-AS")) {
 					ConceptReferenceTerm candidateTerm = mapping.getConceptReferenceTerm();
+					//skip this reference term if it is a DISA PARAM CODE (mapping)
+					if("LSMOH DISA".equals(candidateTerm.getConceptSource().getName())){
+						log.warn("Found a DISA mapping code "+candidateTerm.getCode()+" ..... skipping it **********");
+						continue;
+					}
+					log.warn("Found this other mapping code "+candidateTerm.getCode()+" .... adding it to the list");
 					if (targetCodeSystem == null || targetCodeSystemName.equals(candidateTerm.getConceptSource().getName())
 					        || targetCodeSystem.equals(candidateTerm.getConceptSource().getHl7Code())) {
 						preferredCodes.add(candidateTerm);

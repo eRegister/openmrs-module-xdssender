@@ -36,7 +36,7 @@
 		<legacyuiVersion>1.2.3</legacyuiVersion>
 		<apacheHttpCoreVersion>4.2</apacheHttpCoreVersion>
 		<apacheHttpClientVersion>4.2</apacheHttpClientVersion>
-		<javaCompilerVersion>1.7</javaCompilerVersion>
+		<javaCompilerVersion>1.8</javaCompilerVersion>
 		<springWsVersion>2.4.2.RELEASE</springWsVersion>
 	</properties>
 

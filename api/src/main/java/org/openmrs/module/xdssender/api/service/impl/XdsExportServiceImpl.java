@@ -52,9 +52,9 @@ public class XdsExportServiceImpl extends BaseOpenmrsService implements XdsExpor
 				labOrderDoc = new DocumentData(labOrderDocInfo, labOrderDocModel.getData());
 			}
 
-			if (!messageUtil.getPatientIdentifier(clinicalDocInfo).getIdentifierType().getName().equals("ECID")) {
+			/*if (!messageUtil.getPatientIdentifier(clinicalDocInfo).getIdentifierType().getName().equals("ECID")) {
 				throw new Exception("Patient doesn't have ECID Identifier.");
-			}
+			}*/
 
 			ProvideAndRegisterDocumentSetRequestType request = messageUtil.createProvideAndRegisterDocument(clinicalDoc,
 					labOrderDoc, encounter);
